@@ -1,12 +1,12 @@
 #!/bin/sh
 set -e
 
-# Run migrations (optional, hapus kalau tidak perlu)
-php /app/artisan migrate --force || true
+mkdir -p /run/php
 
 # Start PHP-FPM
-mkdir -p /run/php
 php-fpm -D
+
+sleep 2
 
 # Start Nginx
 nginx -g 'daemon off;'
