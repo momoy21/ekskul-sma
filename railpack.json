@@ -3,5 +3,5 @@
   "packages": {
     "php": "8.3"
   },
-  "buildAptPackages": ["bison"]
+  "buildAptPackages": ["bison", "libgd-dev", "libpng-dev", "libjpeg-dev", "libfreetype6-dev"]
 }
