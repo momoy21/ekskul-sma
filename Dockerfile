@@ -1,16 +1,12 @@
-FROM php:8.3-apache
+FROM php:8.3-fpm as php-builder
 
 WORKDIR /app
 
-# Install system dependencies and build tools
+# Install system dependencies and PHP extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
-    wget \
     git \
-    unzip \
-    libssl-dev \
-    libcurl4-openssl-dev \
     libicu-dev \
     libjpeg-dev \
     libonig-dev \
@@ -36,48 +32,78 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
     xml \
     zip
 
-# Enable Apache modules (disable conflicting MPMs first)
-RUN a2dismod mpm_event mpm_worker 2>/dev/null || true && \
-    a2enmod mpm_prefork rewrite headers
-
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Copy application files
 COPY . .
 
-# Install dependencies
+# Install PHP dependencies
 RUN composer install --optimize-autoloader --no-dev --no-interaction
 
-# Generate APP_KEY if needed
+# Generate APP_KEY
 RUN cp .env.example .env && php artisan key:generate --force || true
 
+# --- Nginx stage ---
+FROM nginx:alpine
+
+WORKDIR /app
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Copy PHP files from builder
+COPY --from=php-builder /app /app
+
+# Copy PHP-FPM from builder
+COPY --from=php-builder /usr/local/bin/php /usr/local/bin/php
+COPY --from=php-builder /usr/local/lib/php /usr/local/lib/php
+COPY --from=php-builder /usr/local/etc/php /usr/local/etc/php
+
 # Set permissions
-RUN chown -R www-data:www-data /app && \
-    chmod -R 755 /app && \
-    chmod -R 775 /app/storage /app/bootstrap/cache
+RUN chown -R 82:82 /app && chmod -R 755 /app && chmod -R 775 /app/storage /app/bootstrap/cache
 
-# Configure Apache to serve Laravel from public directory
-RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /app/public|g' /etc/apache2/sites-available/000-default.conf && \
-    sed -i 's|/var/www/html|/app/public|g' /etc/apache2/apache2.conf
+# Configure Nginx
+RUN cat > /etc/nginx/conf.d/default.conf << 'EOF'
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    root /app/public;
+    index index.php index.html index.htm;
+    client_max_body_size 100M;
 
-# Add health check endpoint script
-RUN cat > /usr/local/bin/health-check.sh << 'EOF'
-#!/bin/bash
-response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health || echo "000")
-if [ "$response" = "200" ] || [ "$response" = "404" ]; then
-  exit 0
-else
-  exit 1
-fi
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME /app/public$fastcgi_script_name;
+        include fastcgi_params;
+        fastcgi_buffer_size 128k;
+        fastcgi_buffers 4 256k;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
 EOF
-RUN chmod +x /usr/local/bin/health-check.sh
 
-# Add health check to Docker
-HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+# Health check script
+RUN mkdir -p /usr/local/bin && \
+    echo '#!/bin/sh' > /usr/local/bin/health-check.sh && \
+    echo 'curl -f http://localhost/ || exit 1' >> /usr/local/bin/health-check.sh && \
+    chmod +x /usr/local/bin/health-check.sh
+
+# Health check
+HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
   CMD /usr/local/bin/health-check.sh
 
 EXPOSE 80
 
-CMD ["apache2-foreground"]
+# Start both PHP-FPM and Nginx
+CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
 
