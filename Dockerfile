@@ -2,8 +2,9 @@ FROM php:8.3-apache
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies and build tools
 RUN apt-get update && apt-get install -y \
+    build-essential \
     curl \
     wget \
     git \
@@ -15,6 +16,11 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     libreadline-dev \
     gettext \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libonig-dev \
+    libsodium-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
