@@ -1,0 +1,11 @@
+[build]
+dockerfile = "Dockerfile"
+
+[deploy]
+startCommand = "sh -c 'php artisan migrate --force && apache2-foreground'"
+healthcheckPath = "/"
+healthcheckTimeout = 30
+
+[env]
+PORT = "80"
+
