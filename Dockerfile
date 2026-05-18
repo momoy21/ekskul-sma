@@ -58,16 +58,24 @@ FROM nginx:alpine
 
 WORKDIR /app
 
-# Install curl for health checks
-RUN apk add --no-cache curl
+# Install PHP-FPM and curl for health checks
+RUN apk add --no-cache \
+    php83-fpm \
+    php83-curl \
+    php83-gd \
+    php83-intl \
+    php83-mbstring \
+    php83-pdo \
+    php83-pdo_mysql \
+    php83-pdo_pgsql \
+    php83-xml \
+    php83-zip \
+    php83-bcmath \
+    php83-sodium \
+    curl
 
-# Copy PHP files from builder
+# Copy application files from builder
 COPY --from=php-builder /app /app
-
-# Copy PHP-FPM from builder
-COPY --from=php-builder /usr/local/bin/php /usr/local/bin/php
-COPY --from=php-builder /usr/local/lib/php /usr/local/lib/php
-COPY --from=php-builder /usr/local/etc/php /usr/local/etc/php
 
 # Set permissions
 RUN chown -R 82:82 /app && chmod -R 755 /app && chmod -R 775 /app/storage /app/bootstrap/cache
@@ -88,5 +96,5 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
 EXPOSE 80
 
 # Start both PHP-FPM and Nginx
-CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
+CMD ["sh", "-c", "php-fpm83 -D && nginx -g 'daemon off;'"]
 
