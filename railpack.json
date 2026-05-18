@@ -1,0 +1,7 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "packages": {
+    "php": "8.3"
+  },
+  "buildAptPackages": ["bison", "libgd-dev", "libpng-dev", "libjpeg-dev", "libfreetype6-dev"]
+}
