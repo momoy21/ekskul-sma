@@ -2,24 +2,33 @@ FROM php:8.3-fpm as php-builder
 
 WORKDIR /app
 
-# Install system dependencies and PHP extensions
+# Install system dependencies BEFORE PHP extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    autoconf \
+    automake \
     curl \
     git \
+    libcurl4-openssl-dev \
+    libfreetype6-dev \
     libicu-dev \
-    libjpeg-dev \
+    libjpeg62-turbo-dev \
     libonig-dev \
     libpng-dev \
-    libfreetype6-dev \
+    libpq-dev \
+    libsodium-dev \
+    libssl-dev \
     libxml2-dev \
     libzip-dev \
-    libpq-dev \
+    pkg-config \
+    unzip \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Configure and install PHP extensions
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
+RUN docker-php-ext-configure gd \
+        --with-freetype=/usr/include/ \
+        --with-jpeg=/usr/include/ && \
     docker-php-ext-configure intl && \
     docker-php-ext-install \
     bcmath \
