@@ -1,7 +1,24 @@
 {
   "$schema": "https://schema.railpack.com",
+  "provider": "php",
   "packages": {
-    "php": "8.3"
+    "php": "8.3",
+    "node": "22"
   },
-  "buildAptPackages": ["bison", "libgd-dev", "libpng-dev", "libjpeg-dev", "libfreetype6-dev"]
+  "buildAptPackages": [
+    "re2c",
+    "bison",
+    "autoconf",
+    "libgd-dev",
+    "libpng-dev",
+    "libjpeg-dev",
+    "libfreetype6-dev",
+    "libicu-dev",
+    "libzip-dev",
+    "libpq-dev",
+    "libonig-dev",
+    "libxml2-dev",
+    "libcurl4-openssl-dev",
+    "libsodium-dev"
+  ]
 }
