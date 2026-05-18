@@ -1,12 +1,11 @@
-FROM php:8.3-fpm as php-builder
+FROM php:8.3-fpm
 
 WORKDIR /app
 
-# Install system dependencies BEFORE PHP extensions
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     autoconf \
-    automake \
     curl \
     git \
     libcurl4-openssl-dev \
@@ -20,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     libxml2-dev \
     libzip-dev \
+    nginx \
     pkg-config \
     unzip \
     zlib1g-dev \
@@ -31,15 +31,15 @@ RUN docker-php-ext-configure gd \
         --with-jpeg=/usr/include/ && \
     docker-php-ext-configure intl && \
     docker-php-ext-install \
-    bcmath \
-    curl \
-    gd \
-    intl \
-    mbstring \
-    pdo_mysql \
-    pdo_pgsql \
-    xml \
-    zip
+        bcmath \
+        curl \
+        gd \
+        intl \
+        mbstring \
+        pdo_mysql \
+        pdo_pgsql \
+        xml \
+        zip
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -50,51 +50,21 @@ COPY . .
 # Install PHP dependencies
 RUN composer install --optimize-autoloader --no-dev --no-interaction
 
-# Generate APP_KEY
+# Setup .env & key
 RUN cp .env.example .env && php artisan key:generate --force || true
 
-# --- Nginx stage ---
-FROM nginx:alpine
-
-WORKDIR /app
-
-# Install PHP-FPM and curl for health checks
-RUN apk add --no-cache \
-    php83-fpm \
-    php83-curl \
-    php83-gd \
-    php83-intl \
-    php83-mbstring \
-    php83-pdo \
-    php83-pdo_mysql \
-    php83-pdo_pgsql \
-    php83-xml \
-    php83-zip \
-    php83-bcmath \
-    php83-sodium \
-    curl
-
-# Copy application files from builder
-COPY --from=php-builder /app /app
-
 # Set permissions
-RUN chown -R 82:82 /app && chmod -R 755 /app && chmod -R 775 /app/storage /app/bootstrap/cache
+RUN chown -R www-data:www-data /app \
+    && chmod -R 755 /app \
+    && chmod -R 775 /app/storage /app/bootstrap/cache
 
-# Configure Nginx - use printf for better compatibility with Alpine
-RUN printf 'server {\n    listen 80 default_server;\n    listen [::]:80 default_server;\n    server_name _;\n    root /app/public;\n    index index.php index.html index.htm;\n    client_max_body_size 100M;\n\n    location / {\n        try_files $uri $uri/ /index.php?$query_string;\n    }\n\n    location ~ \.php$ {\n        fastcgi_pass 127.0.0.1:9000;\n        fastcgi_index index.php;\n        fastcgi_param SCRIPT_FILENAME /app/public$fastcgi_script_name;\n        include fastcgi_params;\n        fastcgi_buffer_size 128k;\n        fastcgi_buffers 4 256k;\n    }\n\n    location ~ /\.ht {\n        deny all;\n    }\n}\n' > /etc/nginx/conf.d/default.conf
-
-# Health check script
-RUN mkdir -p /usr/local/bin && \
-    echo '#!/bin/sh' > /usr/local/bin/health-check.sh && \
-    echo 'curl -f http://localhost/ || exit 1' >> /usr/local/bin/health-check.sh && \
-    chmod +x /usr/local/bin/health-check.sh
-
-# Health check
-HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
-  CMD /usr/local/bin/health-check.sh
+# Configure Nginx
+COPY docker/nginx.conf /etc/nginx/sites-available/default
 
 EXPOSE 80
 
-# Start both PHP-FPM and Nginx
-CMD ["sh", "-c", "php-fpm83 -D && nginx -g 'daemon off;'"]
+# Startup script
+COPY docker/start.sh /start.sh
+RUN chmod +x /start.sh
 
+CMD ["/start.sh"]
