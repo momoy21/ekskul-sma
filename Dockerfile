@@ -41,22 +41,6 @@ RUN docker-php-ext-configure gd \
         xml \
         zip
 
-        # Install Node.js
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y nodejs
-
-# Copy dulu package.json
-COPY package.json package-lock.json ./
-RUN npm install
-
-# Copy semua file
-COPY . .
-
-# Build assets
-RUN npm run build
-
-# Baru composer
-RUN composer install --optimize-autoloader --no-dev --no-interaction
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
