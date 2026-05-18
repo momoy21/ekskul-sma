@@ -72,34 +72,8 @@ COPY --from=php-builder /usr/local/etc/php /usr/local/etc/php
 # Set permissions
 RUN chown -R 82:82 /app && chmod -R 755 /app && chmod -R 775 /app/storage /app/bootstrap/cache
 
-# Configure Nginx
-RUN cat > /etc/nginx/conf.d/default.conf << 'EOF'
-server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    server_name _;
-    root /app/public;
-    index index.php index.html index.htm;
-    client_max_body_size 100M;
-
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
-
-    location ~ \.php$ {
-        fastcgi_pass 127.0.0.1:9000;
-        fastcgi_index index.php;
-        fastcgi_param SCRIPT_FILENAME /app/public$fastcgi_script_name;
-        include fastcgi_params;
-        fastcgi_buffer_size 128k;
-        fastcgi_buffers 4 256k;
-    }
-
-    location ~ /\.ht {
-        deny all;
-    }
-}
-EOF
+# Configure Nginx - use printf for better compatibility with Alpine
+RUN printf 'server {\n    listen 80 default_server;\n    listen [::]:80 default_server;\n    server_name _;\n    root /app/public;\n    index index.php index.html index.htm;\n    client_max_body_size 100M;\n\n    location / {\n        try_files $uri $uri/ /index.php?$query_string;\n    }\n\n    location ~ \.php$ {\n        fastcgi_pass 127.0.0.1:9000;\n        fastcgi_index index.php;\n        fastcgi_param SCRIPT_FILENAME /app/public$fastcgi_script_name;\n        include fastcgi_params;\n        fastcgi_buffer_size 128k;\n        fastcgi_buffers 4 256k;\n    }\n\n    location ~ /\.ht {\n        deny all;\n    }\n}\n' > /etc/nginx/conf.d/default.conf
 
 # Health check script
 RUN mkdir -p /usr/local/bin && \
