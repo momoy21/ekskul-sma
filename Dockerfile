@@ -3,7 +3,7 @@ FROM php:8.3-apache
 WORKDIR /app
 
 # Install system dependencies and build tools
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     wget \
@@ -11,29 +11,30 @@ RUN apt-get update && apt-get install -y \
     unzip \
     libssl-dev \
     libcurl4-openssl-dev \
-    zlib1g-dev \
-    libxml2-dev \
-    libpq-dev \
-    libreadline-dev \
-    gettext \
-    libpng-dev \
+    libicu-dev \
     libjpeg-dev \
-    libfreetype6-dev \
     libonig-dev \
-    libsodium-dev \
+    libpng-dev \
+    libfreetype6-dev \
+    libxml2-dev \
+    libzip-dev \
+    libpq-dev \
+    zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions
-RUN docker-php-ext-install \
-    gd \
-    pdo_mysql \
-    curl \
-    xml \
-    mbstring \
-    zip \
+# Configure and install PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
+    docker-php-ext-configure intl && \
+    docker-php-ext-install \
     bcmath \
+    curl \
+    gd \
     intl \
-    pdo_pgsql
+    mbstring \
+    pdo_mysql \
+    pdo_pgsql \
+    xml \
+    zip
 
 # Enable Apache modules
 RUN a2enmod rewrite headers
@@ -52,22 +53,13 @@ RUN chown -R www-data:www-data /app && \
     chmod -R 755 /app && \
     chmod -R 775 /app/storage /app/bootstrap/cache
 
-# Configure Apache for Laravel
-RUN sed -i 's|/var/www/html|/app/public|g' /etc/apache2/sites-available/000-default.conf && \
-    echo "<Directory /app/public>" >> /etc/apache2/sites-available/000-default.conf && \
-    echo "  Options Indexes FollowSymLinks" >> /etc/apache2/sites-available/000-default.conf && \
-    echo "  AllowOverride All" >> /etc/apache2/sites-available/000-default.conf && \
-    echo "  Require all granted" >> /etc/apache2/sites-available/000-default.conf && \
-    echo "</Directory>" >> /etc/apache2/sites-available/000-default.conf
-
-# Copy .env.example if .env doesn't exist
-RUN if [ ! -f .env ]; then cp .env.example .env; fi
-
-# Generate app key
-RUN php artisan key:generate --force || true
+# Configure Apache to serve Laravel from public directory
+RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /app/public|g' /etc/apache2/sites-available/000-default.conf && \
+    sed -i 's|/var/www/html|/app/public|g' /etc/apache2/apache2.conf
 
 # Create startup script
-RUN echo '#!/bin/bash\nphp artisan migrate --force\napache2-foreground' > /start.sh && chmod +x /start.sh
+RUN echo '#!/bin/bash\nset -e\nphp artisan migrate --force || true\napache2-foreground' > /start.sh && \
+    chmod +x /start.sh
 
 EXPOSE 80
 
