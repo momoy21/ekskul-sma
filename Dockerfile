@@ -70,7 +70,7 @@ else
   exit 1
 fi
 EOF
-chmod +x /usr/local/bin/health-check.sh
+RUN chmod +x /usr/local/bin/health-check.sh
 
 # Add health check to Docker
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
