@@ -3,12 +3,6 @@ dockerfile = "Dockerfile"
 
 [deploy]
 startCommand = "apache2-foreground"
-healthcheckPath = "/"
-healthcheckTimeout = 60
 
-[env]
-PORT = "80"
-APP_ENV = "production"
-APP_DEBUG = "false"
 
 

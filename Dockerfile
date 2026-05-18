@@ -48,6 +48,9 @@ COPY . .
 # Install dependencies
 RUN composer install --optimize-autoloader --no-dev --no-interaction
 
+# Generate APP_KEY if needed
+RUN cp .env.example .env && php artisan key:generate --force || true
+
 # Set permissions
 RUN chown -R www-data:www-data /app && \
     chmod -R 755 /app && \
@@ -57,10 +60,23 @@ RUN chown -R www-data:www-data /app && \
 RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /app/public|g' /etc/apache2/sites-available/000-default.conf && \
     sed -i 's|/var/www/html|/app/public|g' /etc/apache2/apache2.conf
 
-# Create startup script with better health check support
-RUN echo '#!/bin/bash\nset -e\n\n# Wait for database and skip migration on startup\n# Migrations should run as a separate job or manually\necho "Starting Apache..."\nexec apache2-foreground' > /start.sh && \
-    chmod +x /start.sh
+# Add health check endpoint script
+RUN cat > /usr/local/bin/health-check.sh << 'EOF'
+#!/bin/bash
+response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health || echo "000")
+if [ "$response" = "200" ] || [ "$response" = "404" ]; then
+  exit 0
+else
+  exit 1
+fi
+EOF
+chmod +x /usr/local/bin/health-check.sh
+
+# Add health check to Docker
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+  CMD /usr/local/bin/health-check.sh
 
 EXPOSE 80
 
-CMD ["/start.sh"]
+CMD ["apache2-foreground"]
+
