@@ -2,10 +2,13 @@
 dockerfile = "Dockerfile"
 
 [deploy]
-startCommand = "sh -c 'php artisan migrate --force && apache2-foreground'"
+startCommand = "apache2-foreground"
 healthcheckPath = "/"
-healthcheckTimeout = 30
+healthcheckTimeout = 60
 
 [env]
 PORT = "80"
+APP_ENV = "production"
+APP_DEBUG = "false"
+
 

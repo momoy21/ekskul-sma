@@ -57,8 +57,8 @@ RUN chown -R www-data:www-data /app && \
 RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /app/public|g' /etc/apache2/sites-available/000-default.conf && \
     sed -i 's|/var/www/html|/app/public|g' /etc/apache2/apache2.conf
 
-# Create startup script
-RUN echo '#!/bin/bash\nset -e\nphp artisan migrate --force || true\napache2-foreground' > /start.sh && \
+# Create startup script with better health check support
+RUN echo '#!/bin/bash\nset -e\n\n# Wait for database and skip migration on startup\n# Migrations should run as a separate job or manually\necho "Starting Apache..."\nexec apache2-foreground' > /start.sh && \
     chmod +x /start.sh
 
 EXPOSE 80
