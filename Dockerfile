@@ -36,8 +36,9 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
     xml \
     zip
 
-# Enable Apache modules
-RUN a2enmod rewrite headers
+# Enable Apache modules (disable conflicting MPMs first)
+RUN a2dismod mpm_event mpm_worker 2>/dev/null || true && \
+    a2enmod mpm_prefork rewrite headers
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
