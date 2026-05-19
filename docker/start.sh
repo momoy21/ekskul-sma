@@ -3,8 +3,10 @@ set -e
 
 mkdir -p /run/php
 
-# Run migrations
-php /app/artisan migrate --force
+# Force HTTPS
+php /app/artisan config:cache
+php /app/artisan route:cache
+php /app/artisan view:cache
 
 # Start PHP-FPM
 php-fpm -D
