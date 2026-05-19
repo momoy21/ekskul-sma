@@ -3,6 +3,9 @@ set -e
 
 mkdir -p /run/php
 
+# Run migrations
+php /app/artisan migrate --force
+
 # Start PHP-FPM
 php-fpm -D
 

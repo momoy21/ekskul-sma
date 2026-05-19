@@ -2,7 +2,7 @@ FROM php:8.3-fpm
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies + Node.js
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     autoconf \
@@ -20,12 +20,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxml2-dev \
     libzip-dev \
     nginx \
+    nodejs \
+    npm \
     pkg-config \
     unzip \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure and install PHP extensions
+# Install PHP extensions
 RUN docker-php-ext-configure gd \
         --with-freetype=/usr/include/ \
         --with-jpeg=/usr/include/ && \
@@ -41,12 +43,18 @@ RUN docker-php-ext-configure gd \
         xml \
         zip
 
-
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Copy application files
+# Copy package.json dulu untuk cache
+COPY package*.json ./
+RUN npm install
+
+# Copy semua file
 COPY . .
+
+# Build frontend assets
+RUN npm run build
 
 # Install PHP dependencies
 RUN composer install --optimize-autoloader --no-dev --no-interaction
@@ -64,7 +72,6 @@ COPY docker/nginx.conf /etc/nginx/sites-available/default
 
 EXPOSE 80
 
-# Startup script
 COPY docker/start.sh /start.sh
 RUN chmod +x /start.sh
 
